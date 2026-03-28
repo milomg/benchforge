@@ -30,6 +30,24 @@ export interface ResolvedNode {
   nodeId: number;
 }
 
+/** An allocation site with its call stack, byte count, and attached samples */
+export interface HeapSite {
+  /** The call frame at this allocation site */
+  frame: ResolvedFrame;
+
+  /** Total bytes allocated at this site */
+  bytes: number;
+
+  /** Call stack from root to this frame */
+  stack: ResolvedFrame[];
+
+  /** Individual allocation samples at this site */
+  samples?: HeapSample[];
+
+  /** Distinct caller paths when sites are aggregated */
+  callers?: { stack: ResolvedFrame[]; bytes: number }[];
+}
+
 /** Pre-resolved heap profile: single tree walk produces all derived data */
 export interface ResolvedProfile {
   /** All nodes from the profile tree, flattened */
@@ -46,6 +64,9 @@ export interface ResolvedProfile {
 
   /** Total bytes across all nodes (sum of selfSize) */
   totalBytes: number;
+
+  /** Flatten into allocation sites sorted by bytes descending */
+  sites(): HeapSite[];
 }
 
 /** Walk a HeapProfile tree once, producing a fully resolved intermediate form */
@@ -85,5 +106,42 @@ export function resolveProfile(profile: HeapProfile): ResolvedProfile {
     ? [...profile.samples].sort((a, b) => a.ordinal - b.ordinal)
     : undefined;
 
-  return { nodes, nodeMap, allocationNodes, sortedSamples, totalBytes };
+  function sites(): HeapSite[] {
+    const result: HeapSite[] = [];
+    const nodeIdToSites = new Map<number, HeapSite[]>();
+
+    for (const node of allocationNodes) {
+      const site: HeapSite = {
+        frame: node.frame,
+        bytes: node.selfSize,
+        stack: node.stack,
+      };
+      result.push(site);
+      const existing = nodeIdToSites.get(node.nodeId);
+      if (existing) existing.push(site);
+      else nodeIdToSites.set(node.nodeId, [site]);
+    }
+
+    for (const sample of sortedSamples ?? []) {
+      const matching = nodeIdToSites.get(sample.nodeId);
+      if (!matching) continue;
+      for (const site of matching) {
+        if (!site.samples) site.samples = [];
+        site.samples.push(sample);
+      }
+    }
+
+    return result.sort((a, b) => b.bytes - a.bytes);
+  }
+
+  return { nodes, nodeMap, allocationNodes, sortedSamples, totalBytes, sites };
+}
+
+/** Check if a frame is user code (not browser internals) */
+export function isUserCode(frame: ResolvedFrame): boolean {
+  if (!frame.url) return false;
+  if (frame.url.startsWith("chrome-extension://")) return false;
+  if (frame.url.startsWith("devtools://")) return false;
+  if (frame.url.includes("(native)")) return false;
+  return true;
 }

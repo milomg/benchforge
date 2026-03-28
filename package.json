@@ -9,8 +9,7 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "example:bench": "bin/benchforge --url file://$PWD/examples/browser-bench/index.html --gc-stats --heap-sample --view-report",
-    "example:lap": "bin/benchforge --url file://$PWD/examples/browser-lap/index.html --gc-stats --heap-sample --view-report",
+    "example": "bin/benchforge --url file://$PWD/examples/index.html --gc-stats --heap-sample",
     "fix": "biome check --fix --unsafe --error-on-warnings",
     "lint": "biome check --error-on-warnings",
     "prepublishOnly": "run-s lint build",

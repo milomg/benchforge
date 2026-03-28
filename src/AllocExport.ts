@@ -2,14 +2,13 @@ import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-
-import type { HeapProfile } from "../heap-sample/HeapSampler.ts";
+import type { MeasuredResults } from "./BrowserHeapSampler.ts";
+import type { HeapProfile } from "./heap-sample/HeapSampler.ts";
 import {
   type ResolvedFrame,
   type ResolvedProfile,
   resolveProfile,
-} from "../heap-sample/ResolvedProfile.ts";
-import type { MeasuredResults } from "../MeasuredResults.ts";
+} from "./heap-sample/ResolvedProfile.ts";
 
 type Report = { name: string; measuredResults: MeasuredResults };
 type ReportGroup = { reports: Report[] };

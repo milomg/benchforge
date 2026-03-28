@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head><title>Benchforge Example</title></head>
+<body>
+<h1>Benchforge Example</h1>
+<script>
+function allocArrays() {
+  const results = [];
+  for (let i = 0; i < 5000; i++) results.push(new Array(100).fill(i));
+  return results;
+}
+
+function allocTypedArrays() {
+  const buffers = [];
+  for (let i = 0; i < 2500; i++) buffers.push(new Float64Array(64));
+  return buffers;
+}
+
+function allocStrings() {
+  const strings = [];
+  for (let i = 0; i < 10000; i++) strings.push("x".repeat(200) + i);
+  return strings;
+}
+
+function allocObjects() {
+  const objs = [];
+  for (let i = 0; i < 5000; i++) objs.push({ a: i, b: [i, i + 1], c: { d: i } });
+  return objs;
+}
+
+async function run() {
+  await window.__start?.();
+
+  // Some allocations retained
+  const retained = [allocArrays(), allocTypedArrays(), allocStrings(), allocObjects()];
+
+  // Some allocations GC'd
+  for (let i = 0; i < 10; i++) {
+    allocArrays();
+    allocTypedArrays();
+    allocStrings();
+    allocObjects();
+  }
+
+  await window.__done?.();
+  console.log(`done (${retained.length} retained)`);
+}
+
+setTimeout(run, 100);
+</script>
+</body>
+</html>

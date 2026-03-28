@@ -4,12 +4,11 @@ import {
   chromium,
   type Page,
 } from "playwright";
-import type { GcStats } from "../GcStats.ts";
+import { browserGcStats, type GcStats, type TraceEvent } from "./GcStats.ts";
 import type {
   HeapProfile,
   HeapSampleOptions,
-} from "../heap-sample/HeapSampler.ts";
-import { browserGcStats, type TraceEvent } from "./BrowserGcStats.ts";
+} from "./heap-sample/HeapSampler.ts";
 
 export interface BrowserProfileParams {
   url: string;
@@ -24,10 +23,12 @@ export interface BrowserProfileParams {
 export interface BrowserProfileResult {
   heapProfile?: HeapProfile;
   gcStats?: GcStats;
-  /** Wall-clock ms (lap mode: first start to done, bench function: total loop) */
-  wallTimeMs?: number;
-  /** Per-iteration timing samples (ms) from bench function or lap mode */
-  samples?: number[];
+}
+
+export interface MeasuredResults {
+  name: string;
+  gcStats?: GcStats;
+  heapProfile?: HeapProfile;
 }
 
 interface ManualModeHandle {
@@ -142,17 +143,14 @@ async function setupManualMode(
     }
   });
 
-  await page.exposeFunction(
-    "__benchCollect",
-    async (samples: number[], wallTimeMs: number) => {
-      let heapProfile: HeapProfile | undefined;
-      if (heapSample && instrumentsStarted) {
-        const result = await cdp.send("HeapProfiler.stopSampling");
-        heapProfile = result.profile as unknown as HeapProfile;
-      }
-      resolve({ samples, heapProfile, wallTimeMs });
-    },
-  );
+  await page.exposeFunction("__benchCollect", async () => {
+    let heapProfile: HeapProfile | undefined;
+    if (heapSample && instrumentsStarted) {
+      const result = await cdp.send("HeapProfiler.stopSampling");
+      heapProfile = result.profile as unknown as HeapProfile;
+    }
+    resolve({ heapProfile });
+  });
 
   await page.addInitScript(injectManualFunctions);
 
@@ -169,21 +167,12 @@ async function setupManualMode(
   return { promise, cancel: () => clearTimeout(timer) };
 }
 
-/** In-page timing functions injected via addInitScript (zero CDP overhead).
- *  __start marks the beginning, __done marks the end and collects results. */
+/** In-page timing functions injected via addInitScript (zero CDP overhead). */
 function injectManualFunctions(): void {
   const g = globalThis as any;
-  let startTime = 0;
 
-  g.__start = () => {
-    startTime = performance.now();
-    return g.__benchInstrumentStart();
-  };
-
-  g.__done = () => {
-    const wallTimeMs = performance.now() - startTime;
-    return g.__benchCollect([wallTimeMs], wallTimeMs);
-  };
+  g.__start = () => g.__benchInstrumentStart();
+  g.__done = () => g.__benchCollect();
 }
 
 export { profileBrowser as profileBrowserHeap };

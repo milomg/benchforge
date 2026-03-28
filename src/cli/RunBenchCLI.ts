@@ -1,24 +1,18 @@
 import pico from "picocolors";
-import type { BenchSuite } from "../Benchmark.ts";
+import { exportAndLaunchSpeedscope, exportSpeedscope } from "../AllocExport.ts";
 import {
   type BrowserProfileResult,
+  type MeasuredResults,
   profileBrowser,
-} from "../browser/BrowserHeapSampler.ts";
-import {
-  exportAndLaunchSpeedscope,
-  exportSpeedscope,
-} from "../export/AllocExport.ts";
+} from "../BrowserHeapSampler.ts";
+import { formatBytes } from "../Formatters.ts";
 import {
   aggregateSites,
-  filterSites,
-  flattenProfile,
   formatHeapReport,
   formatRawSamples,
   type HeapReportOptions,
 } from "../heap-sample/HeapSampleReport.ts";
 import { resolveProfile } from "../heap-sample/ResolvedProfile.ts";
-import type { MeasuredResults } from "../MeasuredResults.ts";
-import { formatBytes } from "../table-util/Formatters.ts";
 import {
   type Configure,
   type DefaultCliArgs,
@@ -34,16 +28,13 @@ export interface ExportOptions {
 
 /** Run benchmarks and display table. Only supports browser mode (--url). */
 export async function runDefaultBench(
-  _suite?: BenchSuite,
   configureArgs?: Configure<any>,
 ): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2), configureArgs);
   if (args.url) {
     await browserBenchExports(args);
   } else {
-    throw new Error(
-      "Only browser mode is supported. Provide a page URL with --url.",
-    );
+    throw new Error("Must provide a page URL with --url.");
   }
 }
 
@@ -92,7 +83,6 @@ function printBrowserReport(
   }
   if (result.heapProfile) {
     printHeapReports(results, {
-      userOnly: args["heap-user-only"],
       topN: args["heap-rows"],
       stackDepth: args["heap-stack"],
       verbose: args["heap-verbose"],
@@ -108,10 +98,8 @@ function browserResultGroups(
 ): ExportOptions["results"] {
   const measured: MeasuredResults = {
     name,
-    samples: result.samples || [],
     gcStats: result.gcStats,
     heapProfile: result.heapProfile,
-    totalTime: result.wallTimeMs ? result.wallTimeMs / 1000 : 0,
   };
   return [{ reports: [{ name, measuredResults: measured }] }];
 }
@@ -142,13 +130,10 @@ export function printHeapReports(
 
       console.log(dim(`\n─── Heap profile: ${report.name} ───`));
       const resolved = resolveProfile(heapProfile);
-      const sites = flattenProfile(resolved);
-      const userSites = filterSites(sites, () => true); // Simplification: all sites are user sites for now
-      const totalUserCode = userSites.reduce((sum, s) => sum + s.bytes, 0);
-      const aggregated = aggregateSites(options.userOnly ? userSites : sites);
+      const sites = resolved.sites();
+      const aggregated = aggregateSites(sites);
       const extra = {
         totalAll: resolved.totalBytes,
-        totalUserCode,
         sampleCount: resolved.sortedSamples?.length,
       };
       console.log(formatHeapReport(aggregated, { ...options, ...extra }));

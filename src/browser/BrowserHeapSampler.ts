@@ -165,26 +165,14 @@ async function setupManualMode(
  *  __start marks the beginning, __done marks the end and collects results. */
 function injectManualFunctions(): void {
   const g = globalThis as any;
-  g.__benchSamples = [];
-  g.__benchLastTime = 0;
-  g.__benchFirstStart = 0;
 
   g.__start = () => {
-    const now = performance.now();
-    g.__benchLastTime = now;
-    if (!g.__benchFirstStart) {
-      g.__benchFirstStart = now;
       return g.__benchInstrumentStart();
-    }
+    
   };
 
   g.__done = () => {
-    const now = performance.now();
-    if (g.__benchLastTime) {
-      g.__benchSamples.push(now - g.__benchLastTime);
-    }
-    const wall = g.__benchFirstStart ? now - g.__benchFirstStart : 0;
-    return g.__benchCollect(g.__benchSamples.slice(), wall);
+    return g.__benchCollect();
   };
 }
 

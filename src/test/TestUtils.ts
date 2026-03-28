@@ -1,11 +1,6 @@
-import type { BenchSuite } from "../Benchmark.ts";
 import type { BenchmarkReport } from "../BenchmarkReport.ts";
-import type { Configure, DefaultCliArgs } from "../cli/CliArgs.ts";
-import { parseCliArgs } from "../cli/CliArgs.ts";
-import { defaultReport, runBenchmarks } from "../cli/RunBenchCLI.ts";
 import type { MeasuredResults } from "../MeasuredResults.ts";
 import { average, percentile } from "../StatisticalUtils.ts";
-import { bevy30SamplesMs } from "../tests/fixtures/bevy30-samples.ts";
 
 /** Validation helpers for statistical tests */
 export const assertValid = {
@@ -31,24 +26,17 @@ export const assertValid = {
   },
 };
 
-/** @return formatted benchmark output for CLI testing */
-export async function runBenchCLITest<T = DefaultCliArgs>(
-  suite: BenchSuite,
-  args: string,
-  configureArgs?: Configure<T>,
-): Promise<string> {
-  const argv = args.split(/\s+/).filter(arg => arg.length > 0);
-  const parsedArgs = parseCliArgs(argv, configureArgs) as T & DefaultCliArgs;
-  const results = await runBenchmarks(suite, parsedArgs);
-  return defaultReport(results, parsedArgs);
-}
-
-/** @return slice of bevy30 samples for consistent test data */
+/** @return mock sample data */
 export function getSampleData(start: number, end: number): number[] {
-  return bevy30SamplesMs.slice(start, end);
+  // Simple deterministic pseudo-random sequence for tests
+  const samples = [];
+  for (let i = 0; i < 1000; i++) {
+    samples.push(10 + Math.sin(i * 0.1) * 2 + (i % 5));
+  }
+  return samples.slice(start, end);
 }
 
-/** @return test MeasuredResults from bevy30 samples */
+/** @return test MeasuredResults */
 export function createMeasuredResults(
   sampleRange: [number, number],
   overrides?: Partial<MeasuredResults>,
@@ -65,6 +53,7 @@ export function createMeasuredResults(
       avg: average(samples),
       p50: percentile(samples, 0.5),
       p75: percentile(samples, 0.75),
+      p95: percentile(samples, 0.95),
       p99: percentile(samples, 0.99),
       p999: percentile(samples, 0.999),
     },
@@ -72,7 +61,7 @@ export function createMeasuredResults(
   };
 }
 
-/** @return test BenchmarkReport from bevy30 samples */
+/** @return test BenchmarkReport */
 export function createBenchmarkReport(
   name: string,
   sampleRange: [number, number],

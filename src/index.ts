@@ -20,7 +20,6 @@ export {
   heapProfileToSpeedscope,
   launchSpeedscope,
 } from "./export/AllocExport.ts";
-export * from "./export/JsonFormat.ts";
 export type { MeasuredResults } from "./MeasuredResults.ts";
 export { average } from "./StatisticalUtils.ts";
 export {

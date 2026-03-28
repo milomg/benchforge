@@ -10,7 +10,6 @@ import {
   exportAndLaunchSpeedscope,
   exportSpeedscope,
 } from "../export/AllocExport.ts";
-import { exportBenchmarkJson } from "../export/JsonExport.ts";
 import {
   aggregateSites,
   filterSites,

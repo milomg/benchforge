@@ -10,12 +10,8 @@ export type DefaultCliArgs = InferredOptionTypes<typeof cliOptions>;
 const cliOptions = {
   url:              { type: "string",  requiresArg: true, describe: "page URL for browser profiling", demandOption: true },
   time:           { type: "number",  default: 0.642, requiresArg: true, describe: "test duration in seconds" },
-  iterations:       { type: "number",  requiresArg: true, describe: "exact number of iterations (overrides --time)" },
   "gc-stats":     { type: "boolean", default: false, describe: "collect GC statistics via CDP tracing" },
-  "view-report":        { type: "boolean", default: false, describe: "open HTML report in browser" },
-  "export-report":      { type: "string",  requiresArg: true, describe: "export HTML report to file" },
   "export-json":        { type: "string",  requiresArg: true, describe: "export benchmark data to JSON file" },
-  "export-perfetto":    { type: "string",  requiresArg: true, describe: "export Perfetto trace file (view at ui.perfetto.dev)" },
   "view-alloc":         { type: "boolean", default: false, describe: "open allocation profile in viewer" },
   "export-alloc":       { type: "string",  requiresArg: true, describe: "export allocation profile (speedscope JSON format)" },
   "heap-sample":    { type: "boolean", default: false, describe: "heap sampling allocation attribution" },

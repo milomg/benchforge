@@ -1,10 +1,7 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: [
-    "./src/index.ts",
-    "./src/bin/benchforge.ts",
-  ],
+  entry: "./src/bin/benchforge.ts",
   format: "esm",
   target: "node22",
   clean: true,

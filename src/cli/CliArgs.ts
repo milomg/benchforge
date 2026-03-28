@@ -9,9 +9,7 @@ export type DefaultCliArgs = InferredOptionTypes<typeof cliOptions>;
 // biome-ignore format: compact option definitions
 const cliOptions = {
   url:              { type: "string",  requiresArg: true, describe: "page URL for browser profiling", demandOption: true },
-  time:           { type: "number",  default: 0.642, requiresArg: true, describe: "test duration in seconds" },
   "gc-stats":     { type: "boolean", default: false, describe: "collect GC statistics via CDP tracing" },
-  "export-json":        { type: "string",  requiresArg: true, describe: "export benchmark data to JSON file" },
   "view-alloc":         { type: "boolean", default: false, describe: "open allocation profile in viewer" },
   "export-alloc":       { type: "string",  requiresArg: true, describe: "export allocation profile (speedscope JSON format)" },
   "heap-sample":    { type: "boolean", default: false, describe: "heap sampling allocation attribution" },
@@ -45,5 +43,3 @@ export function parseCliArgs<T = DefaultCliArgs>(
   const yargsInstance = configure(yargs(args));
   return yargsInstance.parseSync() as T;
 }
-
-export const browserCliArgs = defaultCliArgs;

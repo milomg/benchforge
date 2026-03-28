@@ -61,8 +61,6 @@ benchforge --url http://localhost:5173 --gc-stats --heap-sample
 - `--url <url>` - **Required**. Page URL for browser profiling.
 - `--gc-stats` - Collect GC statistics via CDP tracing.
 - `--heap-sample` - Enable heap sampling allocation attribution.
-- `--view-report` - Open HTML report in browser after run.
-- `--export-report <file>` - Export HTML report to file.
 - `--export-json <file>` - Export benchmark data to JSON.
 - `--view-alloc` - Open allocation profile in viewer (speedscope).
 - `--headless` / `--no-headless` - Run browser in headless mode (default: true).

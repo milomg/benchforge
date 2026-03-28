@@ -4,11 +4,11 @@ import {
   chromium,
   type Page,
 } from "playwright";
+import type { GcStats } from "../GcStats.ts";
 import type {
   HeapProfile,
   HeapSampleOptions,
 } from "../heap-sample/HeapSampler.ts";
-import type { GcStats } from "../GcStats.ts";
 import { browserGcStats, type TraceEvent } from "./BrowserGcStats.ts";
 
 export interface BrowserProfileParams {
@@ -19,8 +19,6 @@ export interface BrowserProfileParams {
   headless?: boolean;
   chromeArgs?: string[];
   timeout?: number; // seconds
-  maxTime?: number; // ms, bench function iteration time limit
-  maxIterations?: number; // exact iteration count (bench function mode)
 }
 
 export interface BrowserProfileResult {
@@ -108,6 +106,19 @@ async function startGcTracing(cdp: CDPSession): Promise<TraceEvent[]> {
   return events;
 }
 
+/** Stop CDP tracing and aggregate collected events into GcStats. */
+async function collectTracing(
+  cdp: CDPSession,
+  traceEvents: TraceEvent[],
+): Promise<GcStats> {
+  const complete = new Promise<void>(resolve => {
+    cdp.once("Tracing.tracingComplete", () => resolve());
+  });
+  await cdp.send("Tracing.end");
+  await complete;
+  return browserGcStats(traceEvents);
+}
+
 /** Inject __start as in-page function, expose __done for results collection.
  *  First __start() triggers instrument start. __done() stops instruments and collects timing data. */
 async function setupManualMode(
@@ -127,10 +138,7 @@ async function setupManualMode(
     if (instrumentsStarted) return;
     instrumentsStarted = true;
     if (heapSample) {
-      await cdp.send(
-        "HeapProfiler.startSampling",
-        heapSamplingParams(samplingInterval),
-      );
+      await cdp.send("HeapProfiler.startSampling", { samplingInterval });
     }
   });
 
@@ -165,16 +173,17 @@ async function setupManualMode(
  *  __start marks the beginning, __done marks the end and collects results. */
 function injectManualFunctions(): void {
   const g = globalThis as any;
+  let startTime = 0;
 
   g.__start = () => {
-      return g.__benchInstrumentStart();
-    
+    startTime = performance.now();
+    return g.__benchInstrumentStart();
   };
 
   g.__done = () => {
-    return g.__benchCollect();
+    const wallTimeMs = performance.now() - startTime;
+    return g.__benchCollect([wallTimeMs], wallTimeMs);
   };
 }
-
 
 export { profileBrowser as profileBrowserHeap };

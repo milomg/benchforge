@@ -5,8 +5,7 @@
   "bin": "bin/benchforge",
   "files": [
     "bin",
-    "dist",
-    "src"
+    "dist"
   ],
   "scripts": {
     "build": "tsdown",
@@ -23,17 +22,7 @@
   },
   "publishConfig": {
     "bin": {
-      "benchforge": "dist/bin/benchforge.mjs"
-    },
-    "exports": {
-      ".": {
-        "import": "./dist/index.mjs"
-      }
-    }
-  },
-  "exports": {
-    ".": {
-      "import": "./src/index.ts"
+      "benchforge": "dist/benchforge.mjs"
     }
   },
   "dependencies": {

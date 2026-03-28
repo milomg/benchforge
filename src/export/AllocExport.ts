@@ -3,13 +3,16 @@ import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { groupReports, type ReportGroup } from "../BenchmarkReport.ts";
 import type { HeapProfile } from "../heap-sample/HeapSampler.ts";
 import {
   type ResolvedFrame,
   type ResolvedProfile,
   resolveProfile,
 } from "../heap-sample/ResolvedProfile.ts";
+import type { MeasuredResults } from "../MeasuredResults.ts";
+
+type Report = { name: string; measuredResults: MeasuredResults };
+type ReportGroup = { reports: Report[] };
 
 /** speedscope file format (https://www.speedscope.app/file-format-schema.json) */
 interface SpeedscopeFile {
@@ -49,7 +52,7 @@ export function exportSpeedscope(
   const profiles: SpeedscopeProfile[] = [];
 
   for (const group of groups) {
-    for (const report of groupReports(group)) {
+    for (const report of group.reports) {
       const { heapProfile } = report.measuredResults;
       if (!heapProfile) continue;
       const resolved = resolveProfile(heapProfile);

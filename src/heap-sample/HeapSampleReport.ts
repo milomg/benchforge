@@ -33,7 +33,7 @@ export interface HeapReportOptions {
   stackDepth?: number;
   verbose?: boolean;
   raw?: boolean; // dump every raw sample
-  userOnly?: boolean; // filter to user code only (hide node internals)
+  userOnly?: boolean; // filter to user code only (hide browser internals)
   isUserCode?: UserCodeFilter; // predicate for user vs internal code
   totalAll?: number; // total across all nodes (before filtering)
   totalUserCode?: number; // total for user code only
@@ -74,15 +74,6 @@ export function flattenProfile(resolved: ResolvedProfile): HeapSite[] {
   return sites.sort((a, b) => b.bytes - a.bytes);
 }
 
-/** Check if site is user code (not node internals) */
-export function isNodeUserCode(site: CallFrame): boolean {
-  if (!site.url) return false;
-  if (site.url.startsWith("node:")) return false;
-  if (site.url.includes("(native)")) return false;
-  if (site.url.includes("internal/")) return false;
-  return true;
-}
-
 /** Check if site is user code (not browser internals) */
 export function isBrowserUserCode(site: CallFrame): boolean {
   if (!site.url) return false;
@@ -95,7 +86,7 @@ export function isBrowserUserCode(site: CallFrame): boolean {
 /** Filter sites to user code only */
 export function filterSites(
   sites: HeapSite[],
-  isUser: UserCodeFilter = isNodeUserCode,
+  isUser: UserCodeFilter = isBrowserUserCode,
 ): HeapSite[] {
   return sites.filter(isUser);
 }
@@ -142,7 +133,7 @@ export function formatHeapReport(
 ): string {
   const { topN, stackDepth = 3, verbose = false } = options;
   const { totalAll, totalUserCode, sampleCount } = options;
-  const isUser = options.isUserCode ?? isNodeUserCode;
+  const isUser = options.isUserCode ?? isBrowserUserCode;
   const lines: string[] = [];
   lines.push(`Heap allocation sites (top ${topN}, garbage included):`);
 

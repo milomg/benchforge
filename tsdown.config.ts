@@ -4,7 +4,6 @@ export default defineConfig({
   entry: [
     "./src/index.ts",
     "./src/bin/benchforge.ts",
-    "./src/runners/WorkerScript.ts",
   ],
   format: "esm",
   target: "node22",

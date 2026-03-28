@@ -5,8 +5,7 @@ import {
   valuesForReports,
 } from "../BenchmarkReport.ts";
 import {
-  adaptiveSection,
-  gcSection,
+  browserGcStatsSection,
   timeSection,
 } from "../StandardSections.ts";
 import { createBenchmarkReport, createMeasuredResults } from "./TestUtils.ts";
@@ -57,26 +56,4 @@ test("generates diff columns for baseline comparison", () => {
   const names = ["version1", "version2", "baseVersion", "test3", "test4"];
   for (const name of names) expect(table).toContain(name);
   expect(table).toContain("Δ%");
-});
-
-test("formats adaptive convergence statistics", () => {
-  const reports: BenchmarkReport[] = [
-    createBenchmarkReport("test-adaptive", [400, 500], {
-      convergence: { converged: true, confidence: 95, reason: "stable" },
-    }),
-    createBenchmarkReport("test-low-confidence", [0, 30], {
-      convergence: { converged: false, confidence: 65, reason: "unstable" },
-    }),
-  ];
-
-  const rows = valuesForReports(reports, [adaptiveSection]);
-  expect(rows[0].convergence).toBe(95);
-  expect(rows[1].convergence).toBe(65);
-
-  const table = reportResults(
-    [{ name: "adaptive", reports }],
-    [adaptiveSection],
-  );
-  expect(table).toContain("95%");
-  expect(table).toMatch(/65%/);
 });

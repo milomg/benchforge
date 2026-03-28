@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html>
-<head><title>Browser Lap Mode Example</title></head>
+<head><title>Browser Benchmark Example</title></head>
 <body>
-<h1>Browser Lap Mode: Allocations</h1>
-<p>Uses <code>__start/__lap/__done</code> for per-iteration timing + heap profiling.</p>
+<h1>Browser Benchmark: Simple Start/Done</h1>
 <pre id="log"></pre>
 <script>
 const log = document.getElementById("log");
@@ -34,15 +33,14 @@ function allocObjects() {
 }
 
 async function run() {
-  print("Starting lap mode benchmark...");
+  print("Starting benchmark...");
   const retained = [];
-  await __start();
+  await window.__start?.();
   for (let i = 0; i < 100; i++) {
     retained.push(allocArrays(), allocTypedArrays(), allocStrings(), allocObjects());
-    __lap();
   }
-  await __done();
-  print(`Done! (100 laps, ${retained.length} retained allocations)`);
+  await window.__done?.();
+  print(`Done! (${retained.length} retained allocations)`);
 }
 
 run();

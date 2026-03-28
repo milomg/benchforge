@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { aggregateGcStats, parseGcLine } from "../runners/GcStats.ts";
+import { aggregateGcStats, parseGcLine } from "../GcStats.ts";
 
 test("parseGcLine parses scavenge event from real V8 output", () => {
   // Real V8 --trace-gc-nvp format

@@ -2,8 +2,7 @@
 <html>
 <head><title>Browser Benchmark Example</title></head>
 <body>
-<h1>Browser Benchmark: Allocations</h1>
-<p>Define <code>window.__bench</code> and benchforge handles iteration + timing.</p>
+<h1>Browser Benchmark: Manual Start/Done</h1>
 <script>
 function buildArray() {
   return Array.from({ length: 5000 }, () => Math.random());
@@ -23,12 +22,17 @@ function filterAndReduce(objs) {
     .reduce((acc, o) => acc + o.value, 0);
 }
 
-window.__bench = () => {
+async function run() {
+  await window.__start?.();
   const arr = buildArray();
   const sorted = sortArray(arr);
   const objs = mapToObjects(sorted);
   filterAndReduce(objs);
-};
+  await window.__done?.();
+}
+
+// Run the benchmark after a short delay
+setTimeout(run, 100);
 </script>
 </body>
 </html>

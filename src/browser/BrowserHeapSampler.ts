@@ -8,7 +8,7 @@ import type {
   HeapProfile,
   HeapSampleOptions,
 } from "../heap-sample/HeapSampler.ts";
-import type { GcStats } from "../runners/GcStats.ts";
+import type { GcStats } from "../GcStats.ts";
 import { browserGcStats, type TraceEvent } from "./BrowserGcStats.ts";
 
 export interface BrowserProfileParams {
@@ -32,14 +32,13 @@ export interface BrowserProfileResult {
   samples?: number[];
 }
 
-interface LapModeHandle {
+interface ManualModeHandle {
   promise: Promise<BrowserProfileResult>;
   cancel: () => void;
 }
 
-/** Run browser benchmark, auto-detecting page API mode.
- *  Bench function (window.__bench): CLI controls iteration and timing.
- *  Lap mode (__start/__lap/__done): page controls the measured region. */
+/** Run browser benchmark via manual timing hooks.
+ *  Page calls __start() to begin instruments and __done() to collect results. */
 export async function profileBrowser(
   params: BrowserProfileParams,
 ): Promise<BrowserProfileResult> {
@@ -59,7 +58,7 @@ export async function profileBrowser(
     page.on("pageerror", err => pageErrors.push(err.message));
 
     const traceEvents = collectGc ? await startGcTracing(cdp) : [];
-    const lapMode = await setupLapMode(
+    const manualMode = await setupManualMode(
       page,
       cdp,
       params,
@@ -69,19 +68,9 @@ export async function profileBrowser(
     );
 
     await page.goto(url, { waitUntil: "load" });
-    const hasBench = await page.evaluate(
-      () => typeof (globalThis as any).__bench === "function",
-    );
 
-    let result: BrowserProfileResult;
-    if (hasBench) {
-      lapMode.cancel();
-      lapMode.promise.catch(() => {}); // suppress unused rejection
-      result = await runBenchLoop(page, cdp, params, samplingInterval);
-    } else {
-      result = await lapMode.promise;
-      lapMode.cancel();
-    }
+    let result = await manualMode.promise;
+    manualMode.cancel();
 
     if (collectGc) {
       result = { ...result, gcStats: await collectTracing(cdp, traceEvents) };
@@ -119,17 +108,16 @@ async function startGcTracing(cdp: CDPSession): Promise<TraceEvent[]> {
   return events;
 }
 
-/** Inject __start/__lap as in-page functions, expose __done for results collection.
- *  __start/__lap are pure in-page (zero CDP overhead). First __start() triggers
- *  instrument start. __done() stops instruments and collects timing data. */
-async function setupLapMode(
+/** Inject __start as in-page function, expose __done for results collection.
+ *  First __start() triggers instrument start. __done() stops instruments and collects timing data. */
+async function setupManualMode(
   page: Page,
   cdp: CDPSession,
   params: BrowserProfileParams,
   samplingInterval: number,
   timeout: number,
   pageErrors: string[],
-): Promise<LapModeHandle> {
+): Promise<ManualModeHandle> {
   const { heapSample } = params;
   const { promise, resolve, reject } =
     Promise.withResolvers<BrowserProfileResult>();
@@ -158,14 +146,14 @@ async function setupLapMode(
     },
   );
 
-  await page.addInitScript(injectLapFunctions);
+  await page.addInitScript(injectManualFunctions);
 
   const timer = setTimeout(() => {
     const lines = [`Timed out after ${timeout}s`];
     if (pageErrors.length) {
       lines.push("Page JS errors:", ...pageErrors.map(e => `  ${e}`));
     } else {
-      lines.push("Page did not call __done() or define window.__bench");
+      lines.push("Page did not call __done()");
     }
     reject(new Error(lines.join("\n")));
   }, timeout * 1000);
@@ -173,73 +161,9 @@ async function setupLapMode(
   return { promise, cancel: () => clearTimeout(timer) };
 }
 
-/** Bench function mode: run window.__bench in a timed iteration loop. */
-async function runBenchLoop(
-  page: Page,
-  cdp: CDPSession,
-  params: BrowserProfileParams,
-  samplingInterval: number,
-): Promise<BrowserProfileResult> {
-  const { heapSample } = params;
-  const maxTime = params.maxTime ?? 642;
-  const maxIter = params.maxIterations ?? Number.MAX_SAFE_INTEGER;
-
-  if (heapSample) {
-    await cdp.send(
-      "HeapProfiler.startSampling",
-      heapSamplingParams(samplingInterval),
-    );
-  }
-
-  const { samples, totalMs } = await page.evaluate(
-    async ({ maxTime, maxIter }) => {
-      const bench = (globalThis as any).__bench;
-      const samples: number[] = [];
-      const startAll = performance.now();
-      const deadline = startAll + maxTime;
-      for (let i = 0; i < maxIter && performance.now() < deadline; i++) {
-        const t0 = performance.now();
-        await bench();
-        samples.push(performance.now() - t0);
-      }
-      return { samples, totalMs: performance.now() - startAll };
-    },
-    { maxTime, maxIter },
-  );
-
-  let heapProfile: HeapProfile | undefined;
-  if (heapSample) {
-    const result = await cdp.send("HeapProfiler.stopSampling");
-    heapProfile = result.profile as unknown as HeapProfile;
-  }
-
-  return { samples, heapProfile, wallTimeMs: totalMs };
-}
-
-/** Stop CDP tracing and parse GC events into GcStats. */
-async function collectTracing(
-  cdp: CDPSession,
-  traceEvents: TraceEvent[],
-): Promise<GcStats> {
-  const complete = new Promise<void>(resolve =>
-    cdp.once("Tracing.tracingComplete", () => resolve()),
-  );
-  await cdp.send("Tracing.end");
-  await complete;
-  return browserGcStats(traceEvents);
-}
-
-function heapSamplingParams(samplingInterval: number) {
-  return {
-    samplingInterval,
-    includeObjectsCollectedByMajorGC: true,
-    includeObjectsCollectedByMinorGC: true,
-  };
-}
-
 /** In-page timing functions injected via addInitScript (zero CDP overhead).
- *  __start/__lap collect timestamps, __done delegates to exposed __benchCollect. */
-function injectLapFunctions(): void {
+ *  __start marks the beginning, __done marks the end and collects results. */
+function injectManualFunctions(): void {
   const g = globalThis as any;
   g.__benchSamples = [];
   g.__benchLastTime = 0;
@@ -254,18 +178,15 @@ function injectLapFunctions(): void {
     }
   };
 
-  g.__lap = () => {
-    const now = performance.now();
-    g.__benchSamples.push(now - g.__benchLastTime);
-    g.__benchLastTime = now;
-  };
-
   g.__done = () => {
-    const wall = g.__benchFirstStart
-      ? performance.now() - g.__benchFirstStart
-      : 0;
+    const now = performance.now();
+    if (g.__benchLastTime) {
+      g.__benchSamples.push(now - g.__benchLastTime);
+    }
+    const wall = g.__benchFirstStart ? now - g.__benchFirstStart : 0;
     return g.__benchCollect(g.__benchSamples.slice(), wall);
   };
 }
+
 
 export { profileBrowser as profileBrowserHeap };

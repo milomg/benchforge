@@ -1,4 +1,31 @@
-/** Bootstrap estimate with confidence interval and raw resample data */
+export type SampleTimeStats = {
+  min: number;
+  max: number;
+  avg: number;
+  p50: number;
+  p75: number;
+  p95: number;
+  p99: number;
+  p999: number;
+};
+
+/** @return percentiles and basic statistics */
+export function computeStats(samples: number[]): SampleTimeStats {
+  const sorted = [...samples].sort((a, b) => a - b);
+  const avg = samples.reduce((sum, s) => sum + s, 0) / samples.length;
+  return {
+    min: sorted[0],
+    max: sorted[sorted.length - 1],
+    avg,
+    p50: percentile(sorted, 0.5),
+    p75: percentile(sorted, 0.75),
+    p95: percentile(sorted, 0.95),
+    p99: percentile(sorted, 0.99),
+    p999: percentile(sorted, 0.999),
+  };
+}
+
+/** @return bootstrap estimate with confidence interval and raw resample data */
 export interface BootstrapResult {
   estimate: number;
   ci: [number, number];
